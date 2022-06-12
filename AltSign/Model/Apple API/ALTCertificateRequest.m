@@ -12,7 +12,7 @@
 
 @implementation ALTCertificateRequest
 
-- (instancetype)init
+- (nullable instancetype)init
 {
     self = [super init];
     if (self)
