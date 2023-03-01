@@ -11,26 +11,89 @@ let package = Package(
         .macOS(.v10_14)
     ],
     products: [
+		.library(
+			name: "AltSign",
+			targets: ["AltSign"]
+		),
+
+		.library(
+			name: "AltSign-Static",
+			type: .static,
+			targets: ["AltSign"]
+		),
+
         .library(
             name: "AltSign-Dynamic",
             type: .dynamic,
-            targets: ["AltSign", "CAltSign", "CoreCrypto", "CCoreCrypto", "ldid", "ldid-core", "OpenSSL"]
-        ),
-        .library(
-            name: "AltSign-Static",
-            targets: ["AltSign", "CAltSign", "CoreCrypto", "CCoreCrypto", "ldid", "ldid-core"]
+            targets: ["AltSign"]
         )
     ],
-    dependencies: [],
+    dependencies: [
+		.package(url: "https://github.com/krzyzanowskim/OpenSSL.git", .upToNextMinor(from: "1.1.180"))
+	],
     targets: [
-        .binaryTarget(
-            name: "OpenSSL",
-            path: "Dependencies/OpenSSL/Frameworks/OpenSSL.xcframework"
-        ),
+		// MARK: - AltSign
+
+		.target(
+			name: "AltSign",
+			dependencies: [
+				"CAltSign"
+			],
+			cSettings: [
+				.headerSearchPath("../minizip/include"),
+				.define("CORECRYPTO_DONOT_USE_TRANSPARENT_UNION=1")
+			]
+		),
+
+		.target(
+			name: "CAltSign",
+			dependencies: [
+				"CoreCrypto",
+				"ldid",
+				"minizip",
+			],
+			publicHeadersPath: "include",
+			cSettings: [
+				.headerSearchPath("include/"),
+				.headerSearchPath("include/AltSign"),
+				.headerSearchPath("Capabilities"),
+				.headerSearchPath("../ldid"),
+				.headerSearchPath("../ldid/include"),
+				.headerSearchPath("../minizip/include"),
+				.headerSearchPath("../ldid/libplist/include"),
+				.headerSearchPath("../ldid"),
+				.define("unix", to: "1"),
+				.unsafeFlags([
+					"-w"
+				])
+			],
+			cxxSettings: [
+				.headerSearchPath("include/"),
+				.headerSearchPath("include/AltSign"),
+				.headerSearchPath("Capabilities"),
+				.headerSearchPath("../ldid"),
+				.headerSearchPath("../ldid/include"),
+				.headerSearchPath("../minizip/include"),
+				.headerSearchPath("../ldid/libplist/include"),
+				.headerSearchPath("../ldid"),
+				.define("unix", to: "1"),
+				.unsafeFlags([
+					"-w"
+				])
+			],
+			linkerSettings: [
+				.linkedFramework("UIKit", .when(platforms: [.iOS])),
+				.linkedFramework("Security")
+			]
+		),
+
+		// MARK: - ldid
 
         .target(
             name: "ldid-core",
-            path: "Dependencies/ldid",
+			dependencies: [
+				"OpenSSL"
+			],
             exclude: [
                 "ldid.hpp",
                 "ldid.cpp",
@@ -70,105 +133,75 @@ let package = Package(
                 "lookup2.c",
                 "libplist/src",
                 "libplist/libcnary",
-                "libplist/libcnary/src"
             ],
             publicHeadersPath: "",
             cSettings: [
                 .headerSearchPath("libplist/include"),
                 .headerSearchPath("libplist/src"),
                 .headerSearchPath("libplist/libcnary/include"),
-                .headerSearchPath("../OpenSSL/ios/include")
-            ]
-        ),
-        .target(
-            name: "ldid",
-            dependencies: ["ldid-core"],
-            path: "AltSign/ldid",
-            exclude: [
-                "alt_ldid.hpp"
-            ],
-            sources: [
-                "alt_ldid.cpp"
-            ],
-            publicHeadersPath: "",
-            cSettings: [
-                .headerSearchPath("../../Dependencies/ldid"),
-                .headerSearchPath("../../Dependencies/ldid/libplist/include"),
-                .headerSearchPath("../../Dependencies/ldid/libplist/src"),
-                .headerSearchPath("../../Dependencies/ldid/libplist/libcnary/include"),
-                .headerSearchPath("../../Dependencies/OpenSSL/ios/include")
+				.unsafeFlags([
+					"-w"
+				])
             ]
         ),
 
         .target(
+            name: "ldid",
+            dependencies: ["ldid-core"],
+            sources: [
+                "alt_ldid.cpp"
+            ],
+            publicHeadersPath: "include",
+            cSettings: [
+                .headerSearchPath("../ldid-core"),
+                .headerSearchPath("../ldid-core/libplist/include"),
+                .headerSearchPath("../ldid-core//libplist/src"),
+                .headerSearchPath("../ldid-core//libplist/libcnary/include"),
+				.unsafeFlags([
+					"-w"
+				])
+            ]
+        ),
+
+		// MARK: - CoreCrypto
+
+        .target(
             name: "CCoreCrypto",
-            path: "Dependencies/corecrypto",
-            // exclude: [
-            //     "Sources/CoreCryptoMacros.swift"
-            // ],
+             exclude: [
+                 "Sources/CoreCryptoMacros.swift"
+             ],
             cSettings: [
                 .headerSearchPath("include/corecrypto"),
                 .define("CORECRYPTO_DONOT_USE_TRANSPARENT_UNION=1")
             ]
         ),
-        // .target(
-        //     name: "CoreCrypto",
-        //     dependencies: ["CCoreCrypto"],
-        //     path: "Dependencies/corecrypto/Sources",
-        //     exclude: [
-        //         "ccsrp.m"
-        //     ],
-        //     sources: [
-        //         "CoreCryptoMacros.swift"
-        //     ],
-        //     cSettings: [
-        //         .define("CORECRYPTO_DONOT_USE_TRANSPARENT_UNION=1")
-        //     ]
-        // ),
 
-        .target(
-            name: "CAltSign",
-            dependencies: ["CoreCrypto", "ldid"],
-            path: "",
-            exclude: [
-                "AltSign/ldid/alt_ldid.cpp",
-                "AltSign/ldid/alt_ldid.hpp",
-                "AltSign/Sources",
-                "AltSign/include/module.modulemap",
-                "Dependencies/corecrypto",
-                "Dependencies/ldid",
-                "Dependencies/OpenSSL",
-                "Dependencies/minizip/iowin32.c",
-                "Dependencies/minizip/Makefile",
-                "Dependencies/minizip/minizip.c",
-                "Dependencies/minizip/miniunz.c",
-                "Dependencies/minizip/ChangeLogUnzip"
-            ],
-            publicHeadersPath: "AltSign/include",
-            cSettings: [
-                .headerSearchPath("AltSign/**"),
-                .headerSearchPath("AltSign/ldid"),
-                .headerSearchPath("Dependencies/minizip"),
-                .headerSearchPath("AltSign/Capabilities"),
-                .headerSearchPath("Dependencies/OpenSSL/ios/include"),
-                .headerSearchPath("Dependencies/ldid/libplist/include"),
-                .headerSearchPath("Dependencies/ldid"),
-                .define("unix=1")
-            ],
-            linkerSettings: [
-                .linkedFramework("UIKit", .when(platforms: [.iOS])),
-                .linkedFramework("Security")
-            ]
-        ),
-        .target(
-            name: "AltSign",
-            dependencies: ["CAltSign"],
-            path: "AltSign/Sources",
-            cSettings: [
-                .headerSearchPath("Dependencies/minizip"),
-                .define("CORECRYPTO_DONOT_USE_TRANSPARENT_UNION=1")
-            ]
-        )
+         .target(
+             name: "CoreCrypto",
+             dependencies: ["CCoreCrypto"],
+             exclude: [
+                 "Sources/ccsrp.m"
+             ],
+			 cSettings: [
+                 .define("CORECRYPTO_DONOT_USE_TRANSPARENT_UNION=1")
+             ]
+         ),
+
+		// MARK: - minizip
+		.target(
+			name: "minizip",
+			sources: [
+				"minizip/zip.c",
+				"minizip/unzip.c",
+				"minizip/ioapi.c"
+			],
+			publicHeadersPath: "include",
+			cSettings: [
+				.unsafeFlags([
+					"-w"
+				])
+			]
+		)
     ],
 
     cLanguageStandard: CLanguageStandard.gnu11,
